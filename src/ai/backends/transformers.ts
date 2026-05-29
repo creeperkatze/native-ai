@@ -3,8 +3,8 @@ import { browser } from 'wxt/browser'
 import type { FromOffscreenMessage } from '../messages'
 import type { AIBackend, ChatMessage, Tool } from '../types'
 
-export class WebLLMBackend implements AIBackend {
-	readonly name = 'WebLLM'
+export class TransformersBackend implements AIBackend {
+	readonly name = 'Transformers.js'
 
 	private modelId: string
 

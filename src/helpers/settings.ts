@@ -1,15 +1,15 @@
 import { browser } from 'wxt/browser'
 
-import { WEBLLM_MODELS } from '../ai/types'
+import { MODELS } from '../ai/types'
 
 export interface ExtensionSettings {
-	webllmModel: string
+	model: string
 	theme: 'system' | 'light' | 'dark'
 	enabledTools: string[]
 }
 
 const defaults: ExtensionSettings = {
-	webllmModel: WEBLLM_MODELS[0].id,
+	model: MODELS[0].id,
 	theme: 'system',
 	enabledTools: [],
 }
@@ -19,8 +19,8 @@ export async function getSettings(): Promise<ExtensionSettings> {
 	const patch = (stored.settings ?? {}) as Partial<ExtensionSettings>
 	const merged = { ...defaults, ...patch }
 	// Reset to default if stored model is no longer in the model list
-	if (!WEBLLM_MODELS.some((m) => m.id === merged.webllmModel)) {
-		merged.webllmModel = defaults.webllmModel
+	if (!MODELS.some((m) => m.id === merged.model)) {
+		merged.model = defaults.model
 	}
 	return merged
 }

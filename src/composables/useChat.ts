@@ -1,12 +1,16 @@
 import { onMounted, onUnmounted, readonly, ref } from 'vue'
 import { browser } from 'wxt/browser'
 
-import { WebLLMBackend } from '../ai/backends/webllm'
+import { TransformersBackend } from '../ai/backends/transformers'
 import type { FromOffscreenMessage } from '../ai/messages'
 import { TOOLS } from '../ai/tools'
 import type { ChatMessage, Tool } from '../ai/types'
 import { getActiveTabContent } from '../helpers/pageContent'
 import { getSettings } from '../helpers/settings'
+
+const SYSTEM_PROMPT =
+	'You are a helpful browser assistant. You can read the current page with the get_page_content tool. Call this tool only when the user explicitly asks about the page or its content.'
+
 
 export type AIStatus = 'idle' | 'initializing' | 'ready' | 'error'
 
@@ -35,7 +39,7 @@ export function useChat() {
 	const initStatus = ref('')
 	const permissionRequest = ref<PermissionRequest | null>(null)
 
-	let backend: WebLLMBackend | null = null
+	let backend: TransformersBackend | null = null
 	let abortController: AbortController | null = null
 	let activeTools: Tool[] = []
 
@@ -102,7 +106,7 @@ export function useChat() {
 			initProgress.value = message.progress
 			initStatus.value = message.status
 		} else if (message.type === 'webllm:ready') {
-			backend = new WebLLMBackend(message.modelId)
+			backend = new TransformersBackend(message.modelId)
 			void getSettings().then((settings) => {
 				activeTools = buildTools(settings.enabledTools)
 			})
@@ -134,7 +138,7 @@ export function useChat() {
 		}
 
 		if (state.state === 'ready' && state.modelId) {
-			backend = new WebLLMBackend(state.modelId as string)
+			backend = new TransformersBackend(state.modelId as string)
 			status.value = 'ready'
 			initProgress.value = 1
 			const settings = await getSettings()
@@ -177,17 +181,20 @@ export function useChat() {
 
 		const tools = activeTools.length > 0 ? activeTools : undefined
 
-		const history: ChatMessage[] = messages.value.slice(0, -1).map((m) => {
-			const msg: ChatMessage = { role: m.role, content: m.content }
-			if (m.tool_calls) msg.tool_calls = m.tool_calls
-			if (m.tool_call_id) msg.tool_call_id = m.tool_call_id
-			return msg
-		})
+		const history: ChatMessage[] = [
+			{ role: 'system', content: SYSTEM_PROMPT },
+			...messages.value.slice(0, -1).map((m) => {
+				const msg: ChatMessage = { role: m.role, content: m.content }
+				if (m.tool_calls) msg.tool_calls = m.tool_calls
+				if (m.tool_call_id) msg.tool_call_id = m.tool_call_id
+				return msg
+			}),
+		]
 
 		try {
 			await backend.chat(
 				history,
-				(chunk) => {
+				(chunk: string) => {
 					messages.value[messages.value.length - 1].content += chunk
 				},
 				abortController.signal,

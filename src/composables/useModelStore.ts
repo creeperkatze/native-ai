@@ -2,11 +2,11 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { browser } from 'wxt/browser'
 
 import type { FromOffscreenMessage } from '../ai/messages'
-import { WEBLLM_MODELS } from '../ai/types'
+import { MODELS } from '../ai/types'
 import { deleteModelFromCache, getCachedModelIds } from '../helpers/modelCache'
 import { getSettings, saveSettings } from '../helpers/settings'
 
-const MODEL_IDS = WEBLLM_MODELS.map((m) => m.id)
+const MODEL_IDS = MODELS.map((m) => m.id)
 
 export function useModelStore() {
 	const cachedIds = ref<Set<string>>(new Set())
@@ -18,14 +18,13 @@ export function useModelStore() {
 	async function refresh() {
 		const [cached, settings] = await Promise.all([getCachedModelIds(MODEL_IDS), getSettings()])
 		cachedIds.value = cached
-		currentModelId.value = settings.webllmModel
+		currentModelId.value = settings.model
 		loading.value = false
 	}
 
 	async function selectModel(modelId: string) {
-		if (!cachedIds.value.has(modelId)) return
 		currentModelId.value = modelId
-		await saveSettings({ webllmModel: modelId })
+		await saveSettings({ model: modelId })
 	}
 
 	async function downloadModel(modelId: string) {
@@ -47,7 +46,7 @@ export function useModelStore() {
 		cachedIds.value = next
 
 		if (currentModelId.value === modelId) {
-			const fallback = WEBLLM_MODELS.find((m) => next.has(m.id))
+			const fallback = MODELS.find((m) => next.has(m.id))
 			if (fallback) await selectModel(fallback.id)
 		}
 	}

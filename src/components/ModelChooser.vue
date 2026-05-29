@@ -33,22 +33,16 @@
 				<!-- Backend header -->
 				<div class="px-3 pt-2.5 pb-1.5">
 					<span class="text-[10px] font-semibold uppercase tracking-widest text-muted">
-						WebLLM
+						Transformers.js
 					</span>
 				</div>
 
 				<!-- Model list -->
 				<div class="pb-1">
 					<button
-						v-for="model in WEBLLM_MODELS"
+						v-for="model in MODELS"
 						:key="model.id"
-						class="w-full flex items-center gap-2.5 px-3 py-2 text-left border-0 bg-transparent"
-						:class="
-							cachedIds.has(model.id)
-								? 'cursor-pointer hover:bg-surface-hover'
-								: 'cursor-default opacity-40'
-						"
-						:disabled="!cachedIds.has(model.id)"
+						class="w-full flex items-center gap-2.5 px-3 py-2 text-left border-0 bg-transparent cursor-pointer hover:bg-surface-hover"
 						@click="handleSelect(model.id)"
 					>
 						<!-- Status indicator -->
@@ -65,10 +59,7 @@
 							>
 								<polyline points="20 6 9 17 4 12" />
 							</svg>
-							<span
-								v-else-if="cachedIds.has(model.id)"
-								class="w-1.5 h-1.5 rounded-full bg-green-500"
-							/>
+							<span class="w-1.5 h-1.5 rounded-full bg-zinc-400" />
 						</div>
 
 						<!-- Model info -->
@@ -77,7 +68,7 @@
 								{{ model.label }}
 							</div>
 							<div class="text-[10px] text-muted leading-snug">
-								{{ cachedIds.has(model.id) ? 'Downloaded' : `~${formatSize(model.sizeMb)}` }}
+								~{{ formatSize(model.sizeMb) }}
 							</div>
 						</div>
 					</button>
@@ -95,7 +86,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { WEBLLM_MODELS } from '../ai/types'
+import { MODELS } from '../ai/types'
 import type { AIStatus } from '../composables/useChat'
 import { useModelStore } from '../composables/useModelStore'
 
@@ -107,12 +98,12 @@ const emit = defineEmits<{
 	change: []
 }>()
 
-const { cachedIds, currentModelId, selectModel } = useModelStore()
+const { currentModelId, selectModel } = useModelStore()
 
 const open = ref(false)
 const rootEl = ref<HTMLElement | null>(null)
 
-const currentModel = computed(() => WEBLLM_MODELS.find((m) => m.id === currentModelId.value))
+const currentModel = computed(() => MODELS.find((m) => m.id === currentModelId.value))
 
 const triggerLabel = computed(() => currentModel.value?.label ?? 'No model')
 
@@ -128,7 +119,7 @@ function formatSize(mb: number) {
 }
 
 async function handleSelect(modelId: string) {
-	if (!cachedIds.value.has(modelId) || modelId === currentModelId.value) {
+	if (modelId === currentModelId.value) {
 		open.value = false
 		return
 	}

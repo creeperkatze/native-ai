@@ -42,19 +42,14 @@ export interface AIBackend {
 	destroy(): void
 }
 
-export interface WebLLMModelInfo {
+export interface ModelInfo {
 	id: string
 	label: string
 	sizeMb: number
 }
 
-export const WEBLLM_MODELS: WebLLMModelInfo[] = [
-	{ id: 'Hermes-3-Llama-3.1-8B-q4f16_1-MLC', label: 'Hermes 3 · Llama 3.1 8B', sizeMb: 4800 },
-	{
-		id: 'Hermes-3-Llama-3.1-8B-q4f32_1-MLC',
-		label: 'Hermes 3 · Llama 3.1 8B (fp32)',
-		sizeMb: 8500,
-	},
-	{ id: 'Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC', label: 'Hermes 2 Pro · Llama 3 8B', sizeMb: 4800 },
-	{ id: 'Hermes-2-Pro-Mistral-7B-q4f16_1-MLC', label: 'Hermes 2 Pro · Mistral 7B', sizeMb: 4200 },
+export const MODELS: ModelInfo[] = [
+	{ id: 'onnx-community/Qwen2.5-0.5B-Instruct', label: 'Qwen 2.5 · 0.5B', sizeMb: 395 },
+	{ id: 'onnx-community/Qwen2.5-1.5B-Instruct', label: 'Qwen 2.5 · 1.5B', sizeMb: 986 },
+	{ id: 'onnx-community/Qwen2.5-3B-Instruct', label: 'Qwen 2.5 · 3B', sizeMb: 1880 },
 ]

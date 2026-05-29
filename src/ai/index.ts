@@ -1,11 +1,11 @@
-import { WebLLMBackend } from './backends/webllm'
+import { TransformersBackend } from './backends/transformers'
 import type { AIBackend } from './types'
 
 export async function createBackend(modelId: string): Promise<AIBackend | null> {
-	const b = new WebLLMBackend(modelId)
+	const b = new TransformersBackend(modelId)
 	return (await b.checkAvailability()) !== 'unavailable' ? b : null
 }
 
-export { WebLLMBackend }
+export { TransformersBackend }
 export type { AIBackend }
 export * from './types'

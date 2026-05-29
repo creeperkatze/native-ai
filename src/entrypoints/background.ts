@@ -24,7 +24,7 @@ export default defineBackground(() => {
 		// Offscreen has no storage access — background reads the setting and triggers the load
 		const settings = await getSettings()
 		browser.runtime
-			.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId: settings.webllmModel })
+			.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId: settings.model })
 			.catch(() => {})
 	}
 

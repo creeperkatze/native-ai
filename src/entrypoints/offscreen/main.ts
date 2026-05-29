@@ -5,7 +5,7 @@ import type { ChatMessage, ToolDefinition } from '../../ai/types'
 type EngineState = 'idle' | 'loading' | 'ready' | 'error'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let engine: any = null
+let pipe: any = null
 let state: EngineState = 'idle'
 let loadedModelId: string | null = null
 let currentProgress = 0
@@ -71,23 +71,22 @@ async function initModel(modelId: string): Promise<void> {
 	currentError = ''
 
 	try {
-		const webllm = await import('@mlc-ai/web-llm')
-		engine = await webllm.CreateMLCEngine(
-			modelId,
-			{
-				initProgressCallback: (info: { progress: number; text: string }) => {
-					currentProgress = info.progress
-					currentStatusText = info.text
-					broadcast({
-						type: 'webllm:progress',
-						progress: info.progress,
-						status: info.text,
-						modelId,
-					})
-				},
+		const { pipeline } = await import('@huggingface/transformers')
+
+		pipe = await pipeline('text-generation', modelId, {
+			device: 'webgpu',
+			dtype: 'q4f16',
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			progress_callback: (info: any) => {
+				if (info.status === 'progress') {
+					const progress = (info.progress ?? 0) / 100
+					currentProgress = progress
+					currentStatusText = info.file ?? ''
+					broadcast({ type: 'webllm:progress', progress, status: currentStatusText, modelId })
+				}
 			},
-			{ context_window_size: 8192 },
-		)
+		})
+
 		loadedModelId = modelId
 		state = 'ready'
 		currentProgress = 1
@@ -95,10 +94,7 @@ async function initModel(modelId: string): Promise<void> {
 	} catch (e) {
 		state = 'error'
 		currentError = e instanceof Error ? e.message : 'Failed to load model'
-		broadcast({
-			type: 'webllm:error',
-			message: currentError,
-		})
+		broadcast({ type: 'webllm:error', message: currentError })
 	}
 }
 
@@ -107,7 +103,7 @@ async function runChat(
 	messages: ChatMessage[],
 	tools?: ToolDefinition[],
 ): Promise<void> {
-	if (!engine) {
+	if (!pipe) {
 		broadcast({ type: 'webllm:error', chatId, message: 'Engine not initialized' })
 		return
 	}
@@ -120,30 +116,47 @@ async function runChat(
 		const allMessages: any[] = [...messages]
 
 		if (tools && tools.length > 0) {
-			// Non-streaming first pass so we can inspect tool_calls before emitting output
+			// Non-streaming first pass to detect tool calls
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const firstPass: any = await engine.chat.completions.create({
-				messages: allMessages,
+			const firstPass: any = await pipe(allMessages, {
+				max_new_tokens: 512,
 				tools,
-				stream: false,
+				return_full_text: false,
 			})
 
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const assistantMsg: any = firstPass.choices[0]?.message
+			const assistantMsg: any = Array.isArray(firstPass[0]?.generated_text)
+				? firstPass[0].generated_text.at(-1)
+				: { role: 'assistant', content: firstPass[0]?.generated_text ?? '' }
 
 			if (assistantMsg?.tool_calls?.length > 0 && !controller.signal.aborted) {
-				// Normalize content to '' — the engine rejects null content in history
-				allMessages.push({ ...assistantMsg, content: assistantMsg.content ?? '' })
+				// Transformers.js tool calls have no id — assign UUIDs now so the assistant
+				// message and the matching tool result entries share the same id.
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const toolCallsWithIds = assistantMsg.tool_calls.map((tc: any) => ({
+					...tc,
+					id: crypto.randomUUID(),
+				}))
+				allMessages.push({
+					...assistantMsg,
+					content: assistantMsg.content ?? '',
+					tool_calls: toolCallsWithIds,
+				})
 
-				for (const toolCall of assistantMsg.tool_calls) {
+				for (const toolCall of toolCallsWithIds) {
 					if (controller.signal.aborted) break
+
+					const toolCallId = toolCall.id
 
 					broadcast({
 						type: 'webllm:tool_call',
 						chatId,
-						toolCallId: toolCall.id,
+						toolCallId,
 						name: toolCall.function.name,
-						args: toolCall.function.arguments,
+						args:
+							typeof toolCall.function.arguments === 'string'
+								? toolCall.function.arguments
+								: JSON.stringify(toolCall.function.arguments ?? {}),
 					})
 
 					// Wait for popup to execute the tool and send back the result
@@ -153,7 +166,7 @@ async function runChat(
 							if (
 								msg.type === 'webllm:tool_result' &&
 								msg.chatId === chatId &&
-								msg.toolCallId === toolCall.id
+								msg.toolCallId === toolCallId
 							) {
 								browser.runtime.onMessage.removeListener(listener)
 								resolve(msg.result as string)
@@ -170,11 +183,12 @@ async function runChat(
 						)
 					})
 
-					allMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: result })
+					allMessages.push({ role: 'tool', tool_call_id: toolCallId, content: result })
 				}
-			} else if (assistantMsg?.content && !controller.signal.aborted) {
-				// Model answered directly without calling any tool — emit and finish
-				broadcast({ type: 'webllm:chunk', chatId, content: assistantMsg.content })
+			} else if (!controller.signal.aborted) {
+				// Model answered directly without calling a tool
+				const content = assistantMsg?.content ?? ''
+				if (content) broadcast({ type: 'webllm:chunk', chatId, content })
 				broadcast({ type: 'webllm:done', chatId })
 				return
 			}
@@ -182,19 +196,24 @@ async function runChat(
 
 		if (controller.signal.aborted) return
 
-		// Streaming pass — either after tool results or when no tools were requested
-		const reply = await engine.chat.completions.create({
-			messages: allMessages,
-			stream: true,
+		// Streaming final pass (no tools — avoids ambiguity with streamed tool call tokens)
+		const { TextStreamer } = await import('@huggingface/transformers')
+		const streamer = new TextStreamer(pipe.tokenizer, {
+			skip_prompt: true,
+			skip_special_tokens: true,
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			callback_function: (text: any) => {
+				if (!controller.signal.aborted) {
+					broadcast({ type: 'webllm:chunk', chatId, content: String(text) })
+				}
+			},
 		})
 
-		for await (const chunk of reply) {
-			if (controller.signal.aborted) break
-			const content = chunk.choices[0]?.delta?.content
-			if (content) broadcast({ type: 'webllm:chunk', chatId, content })
-			// Yield to the event loop so the browser and other processes get CPU time
-			await new Promise((resolve) => setTimeout(resolve, 0))
-		}
+		await pipe(allMessages, {
+			max_new_tokens: 512,
+			streamer,
+			return_full_text: false,
+		})
 
 		if (!controller.signal.aborted) {
 			broadcast({ type: 'webllm:done', chatId })

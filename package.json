@@ -16,8 +16,8 @@
 	},
 	"dependencies": {
 		"@fontsource-variable/inter": "^5.2.8",
+		"@huggingface/transformers": "^4.2.0",
 		"@lucide/vue": "latest",
-		"@mlc-ai/web-llm": "^0.2.79",
 		"@mozilla/readability": "^0.6.0",
 		"marked": "^18.0.4",
 		"turndown": "^7.2.4",

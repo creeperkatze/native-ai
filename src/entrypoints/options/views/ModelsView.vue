@@ -8,10 +8,10 @@
 		<div v-if="!loading" class="mt-6 flex flex-col gap-6">
 			<!-- Model library -->
 			<section>
-				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">WebLLM</h2>
+				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Transformers.js</h2>
 				<div class="flex flex-col gap-2">
 					<div
-						v-for="model in WEBLLM_MODELS"
+						v-for="model in MODELS"
 						:key="model.id"
 						class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-surface-raised"
 					>
@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { WEBLLM_MODELS } from '../../../ai/types'
+import { MODELS } from '../../../ai/types'
 import { useModelStore } from '../../../composables/useModelStore'
 
 const {
