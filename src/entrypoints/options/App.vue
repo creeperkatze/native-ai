@@ -7,7 +7,7 @@
 					<div class="w-6 h-6 rounded-md bg-accent flex items-center justify-center shrink-0">
 						<Sparkles class="size-3.5 text-white" />
 					</div>
-					<span class="font-semibold text-primary">Local AI</span>
+					<span class="font-semibold text-primary">Native AI</span>
 				</div>
 				<p class="text-xs text-muted mt-1">Settings</p>
 			</div>

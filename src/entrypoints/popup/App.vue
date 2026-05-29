@@ -6,7 +6,7 @@
 				<div class="w-5 h-5 rounded-md bg-accent flex items-center justify-center shrink-0">
 					<Sparkles class="size-3 text-white" />
 				</div>
-				<span class="font-semibold text-primary text-sm">Local AI</span>
+				<span class="font-semibold text-primary text-sm">Native AI</span>
 			</div>
 			<div class="flex items-center gap-1">
 				<ModelChooser :ai-status="status" @change="handleModelChange" />

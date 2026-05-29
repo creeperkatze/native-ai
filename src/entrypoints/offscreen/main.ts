@@ -168,6 +168,8 @@ async function runChat(
 			if (controller.signal.aborted) break
 			const content = chunk.choices[0]?.delta?.content
 			if (content) broadcast({ type: 'webllm:chunk', chatId, content })
+			// Yield to the event loop so the browser and other processes get CPU time
+			await new Promise((resolve) => setTimeout(resolve, 0))
 		}
 
 		if (!controller.signal.aborted) {

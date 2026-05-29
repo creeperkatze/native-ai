@@ -1,7 +1,7 @@
 <template>
 	<div class="max-w-xl px-8 py-8">
 		<h1 class="text-base font-semibold text-primary">Appearance</h1>
-		<p class="text-sm text-secondary mt-1">Customize how Local AI looks.</p>
+		<p class="text-sm text-secondary mt-1">Customize how Native AI looks.</p>
 
 		<div v-if="settings" class="mt-6 flex flex-col gap-6">
 			<!-- Theme -->

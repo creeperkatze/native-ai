@@ -22,8 +22,8 @@ export default defineConfig({
 	publicDir: 'src/public',
 	modules: ['@wxt-dev/module-vue'],
 	manifest: {
-		name: 'Local AI',
-		description: 'Run AI models locally in your browser using built-in browser capabilities.',
+		name: 'Native AI',
+		description: 'Run AI models locally in your browser using native browser capabilities.',
 		icons: {
 			16: 'icon-16.png',
 			32: 'icon-32.png',
@@ -39,7 +39,7 @@ export default defineConfig({
 		},
 	},
 	zip: {
-		artifactTemplate: 'local-ai-{{version}}-{{browser}}.zip',
-		sourcesTemplate: 'local-ai-{{version}}-sources.zip',
+		artifactTemplate: 'native-ai-{{version}}-{{browser}}.zip',
+		sourcesTemplate: 'native-ai-{{version}}-sources.zip',
 	},
 })
