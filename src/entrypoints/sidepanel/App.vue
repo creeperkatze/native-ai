@@ -1,5 +1,5 @@
 <template>
-	<div class="w-96 flex flex-col" style="height: 560px">
+	<div class="flex flex-col h-screen">
 		<!-- Header -->
 		<header class="flex items-center justify-between px-3.5 py-3 shrink-0">
 			<div class="flex items-center gap-2">

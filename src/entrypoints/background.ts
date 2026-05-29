@@ -17,11 +17,21 @@ export default defineBackground(() => {
 		})
 	}
 
-	// Create offscreen document on install/startup so it's ready before popup opens
+	function setupSidePanel() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const cr = chrome as any
+		if (cr.sidePanel) {
+			cr.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
+		}
+	}
+
+	// Create offscreen document and configure side panel on install/startup
 	chrome.runtime.onInstalled.addListener(() => {
+		setupSidePanel()
 		ensureOffscreen().catch(console.error)
 	})
 	chrome.runtime.onStartup.addListener(() => {
+		setupSidePanel()
 		ensureOffscreen().catch(console.error)
 	})
 
