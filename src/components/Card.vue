@@ -1,0 +1,47 @@
+<template>
+	<component
+		:is="as"
+		class="card group rounded-lg border transition-colors duration-150 flex items-center justify-between gap-2 px-2.5 py-2"
+		:style="{ '--c': color ?? '#a1a1aa' }"
+	>
+		<div class="min-w-0 flex-1">
+			<div class="text-sm font-semibold text-primary leading-tight">
+				{{ title }}
+			</div>
+			<div v-if="description" class="text-xs text-secondary mt-px">
+				{{ description }}
+			</div>
+		</div>
+		<slot name="icon" />
+	</component>
+</template>
+
+<script setup lang="ts">
+import { type Component } from 'vue'
+
+withDefaults(
+	defineProps<{
+		as?: string | Component
+		color?: string
+		title: string
+		description?: string
+	}>(),
+	{
+		as: 'div',
+		color: undefined,
+		description: undefined,
+	},
+)
+</script>
+
+<style>
+.card {
+	background-color: color-mix(in srgb, var(--c) 8%, var(--color-surface-raised));
+	border-color: color-mix(in srgb, var(--c) 22%, transparent);
+}
+
+.card:hover {
+	background-color: color-mix(in srgb, var(--c) 22%, var(--color-surface-raised));
+	border-color: color-mix(in srgb, var(--c) 60%, transparent);
+}
+</style>
