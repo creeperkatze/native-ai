@@ -27,7 +27,7 @@ export type FromOffscreenMessage =
 	| { type: 'ai:ready'; modelId: string }
 	| { type: 'ai:chunk'; chatId: string; content: string }
 	| { type: 'ai:done'; chatId: string }
-	| { type: 'ai:error'; chatId?: string; message: string }
+	| { type: 'ai:error'; chatId?: string; modelId?: string; message: string }
 	| { type: 'ai:tool_call'; chatId: string; toolCallId: string; name: string; args: string }
 
 // Popup → Background

@@ -42,6 +42,7 @@ export function useChat() {
 	let backend: TransformersBackend | null = null
 	let abortController: AbortController | null = null
 	let activeTools: Tool[] = []
+	let trackedModelId: string | null = null
 
 	function grantPermission(allowed: boolean) {
 		permissionRequest.value?.resolve(allowed)
@@ -99,19 +100,23 @@ export function useChat() {
 		})
 	}
 
-	// Persistent listener: syncs this composable instance to whatever the offscreen is doing
+	// Persistent listener: only reacts to events for the model this chat instance owns
 	function onBackgroundMessage(message: FromOffscreenMessage) {
 		if (message.type === 'ai:progress') {
+			if (message.modelId !== trackedModelId) return
 			status.value = 'initializing'
 			initProgress.value = message.progress
 			initStatus.value = message.status
 		} else if (message.type === 'ai:ready') {
+			if (message.modelId !== trackedModelId) return
 			backend = new TransformersBackend(message.modelId)
 			void getSettings().then((settings) => {
 				activeTools = buildTools(settings.enabledTools)
 			})
 			status.value = 'ready'
 		} else if (message.type === 'ai:error' && !message.chatId) {
+			if (message.modelId && message.modelId !== trackedModelId) return
+			if (status.value === 'ready') return
 			status.value = 'error'
 			errorMessage.value = message.message
 		}
@@ -127,6 +132,9 @@ export function useChat() {
 			// background may not be ready yet
 		}
 
+		const settings = await getSettings()
+		trackedModelId = settings.model
+
 		const state = await browser.runtime
 			.sendMessage({ type: 'ai:check', target: 'offscreen' })
 			.catch(() => null)
@@ -137,11 +145,10 @@ export function useChat() {
 			return
 		}
 
-		if (state.state === 'ready' && state.modelId) {
-			backend = new TransformersBackend(state.modelId as string)
+		if (state.state === 'ready' && state.modelId === trackedModelId) {
+			backend = new TransformersBackend(state.modelId)
 			status.value = 'ready'
 			initProgress.value = 1
-			const settings = await getSettings()
 			activeTools = buildTools(settings.enabledTools)
 		} else if (state.state === 'loading') {
 			status.value = 'initializing'
@@ -162,10 +169,11 @@ export function useChat() {
 		errorMessage.value = ''
 
 		const settings = await getSettings()
+		trackedModelId = settings.model
 		activeTools = buildTools(settings.enabledTools)
 
 		await browser.runtime
-			.sendMessage({ type: 'ai:init', target: 'offscreen', modelId: settings.model })
+			.sendMessage({ type: 'ai:init', target: 'offscreen', modelId: trackedModelId })
 			.catch(() => {})
 	}
 

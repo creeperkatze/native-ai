@@ -3,12 +3,18 @@ import { browser } from 'wxt/browser'
 
 import type { ChatMessage, ToolDefinition } from '../../ai/types'
 
-// Load ONNX Runtime from the extension's bundled files instead of CDN
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-;(env.backends.onnx as any).wasm = {
-	...(env.backends.onnx.wasm ?? {}),
-	wasmPaths: (browser.runtime.getURL as (p: string) => string)('/ort/'),
+// Point ONNX Runtime at locally bundled WASM files instead of CDN.
+// Must mutate the existing wasm object — replacing it would detach it from ORT's internal ONNX_ENV.wasm reference.
+// useWasmCache is disabled to prevent Transformers.js from converting URLs to blob: which Chrome's CSP blocks.
+const _ortWasm = (env.backends.onnx as any).wasm
+if (_ortWasm) {
+	const _base = (browser.runtime.getURL as (p: string) => string)('/ort/')
+	_ortWasm.wasmPaths = {
+		mjs: `${_base}ort-wasm-simd-threaded.asyncify.mjs`,
+		wasm: `${_base}ort-wasm-simd-threaded.asyncify.wasm`,
+	}
 }
+env.useWasmCache = false
 
 type EngineState = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -102,7 +108,7 @@ async function initModel(modelId: string): Promise<void> {
 	} catch (e) {
 		state = 'error'
 		currentError = e instanceof Error ? e.message : 'Failed to load model'
-		broadcast({ type: 'ai:error', message: currentError })
+		broadcast({ type: 'ai:error', modelId, message: currentError })
 	}
 }
 
