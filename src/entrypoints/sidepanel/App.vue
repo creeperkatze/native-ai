@@ -2,12 +2,7 @@
 	<div class="flex flex-col h-screen">
 		<!-- Header -->
 		<header class="flex items-center justify-between px-3.5 py-3 shrink-0">
-			<div class="flex items-center gap-2">
-				<div class="w-5 h-5 rounded-md bg-accent flex items-center justify-center shrink-0">
-					<Sparkles class="size-3 text-white" />
-				</div>
-				<span class="font-semibold text-primary text-sm">Native AI</span>
-			</div>
+			<Logo class="w-32 text-primary" />
 			<div class="flex items-center gap-1">
 				<ModelChooser :ai-status="status" @change="handleModelChange" />
 
@@ -170,7 +165,8 @@
 </template>
 
 <script setup lang="ts">
-import { AlertCircle, ArrowUp, RotateCcw, Settings, Sparkles, Square } from '@lucide/vue'
+import { AlertCircle, ArrowUp, RotateCcw, Settings, Square } from '@lucide/vue'
+import Logo from '../../assets/logo.svg?component'
 import { nextTick, ref, watch } from 'vue'
 import { browser } from 'wxt/browser'
 

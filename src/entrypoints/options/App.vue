@@ -3,13 +3,7 @@
 		<!-- Sidebar -->
 		<aside class="w-52 shrink-0 flex flex-col border-r border-border-subtle bg-surface-2">
 			<div class="px-4 py-4 border-b border-border-subtle">
-				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-md bg-accent flex items-center justify-center shrink-0">
-						<Sparkles class="size-3.5 text-white" />
-					</div>
-					<span class="font-semibold text-primary">Native AI</span>
-				</div>
-				<p class="text-xs text-muted mt-1">Settings</p>
+				<Logo class="w-32 text-primary" />
 			</div>
 
 			<nav class="flex flex-col gap-1 p-2 flex-1">
@@ -36,7 +30,8 @@
 </template>
 
 <script setup lang="ts">
-import { Cpu, Palette, Sparkles, Wrench } from '@lucide/vue'
+import { Cpu, Palette, Wrench } from '@lucide/vue'
+import Logo from '../../assets/logo.svg?component'
 import { useRoute, useRouter } from 'vue-router'
 import { browser } from 'wxt/browser'
 
