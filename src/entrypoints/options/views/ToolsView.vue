@@ -14,10 +14,6 @@
 				<div class="min-w-0">
 					<div class="flex items-center gap-2">
 						<span class="text-sm font-medium text-primary">{{ tool.name }}</span>
-						<span
-							v-if="tool.requiresPermission"
-							class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-surface-3 text-muted border border-border"
-						>Asks permission</span>
 					</div>
 					<p class="text-xs text-secondary mt-0.5">{{ tool.description }}</p>
 				</div>
