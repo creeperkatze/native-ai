@@ -74,34 +74,14 @@
 				</div>
 			</section>
 
-			<!-- Page context -->
-			<section>
-				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Page Context</h2>
-				<div class="flex items-center justify-between p-3 rounded-lg border border-border bg-surface-raised">
-					<div class="min-w-0">
-						<div class="text-sm font-medium text-primary">Include page content</div>
-						<div class="text-xs text-secondary mt-0.5">
-							The model can call a tool to read the current page when relevant.
-						</div>
-					</div>
-					<Toggle
-						:model-value="settings?.includePageContext ?? false"
-						class="ml-4 shrink-0"
-						@update:model-value="update({ includePageContext: $event })"
-					/>
-				</div>
-			</section>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { WEBLLM_MODELS } from '../../../ai/types'
-import Toggle from '../../../components/Toggle.vue'
 import { useModelStore } from '../../../composables/useModelStore'
-import { useSettings } from '../../../composables/useSettings'
 
-const { settings, update } = useSettings()
 const { loading, cachedIds, downloadingId, downloadProgress, currentModelId, downloadModel, deleteModel } =
 	useModelStore()
 

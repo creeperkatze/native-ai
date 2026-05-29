@@ -20,14 +20,6 @@
 					<RotateCcw class="size-4" />
 				</button>
 				<button
-					class="flex items-center justify-center p-1.5 border-0 rounded-[5px] bg-transparent transition-colors duration-150 cursor-pointer"
-					:class="pageContextEnabled ? 'text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'"
-					:title="pageContextEnabled ? 'Page context on — reopen popup to refresh' : 'Include page content'"
-					@click="togglePageContext"
-				>
-					<FileText class="size-4" />
-				</button>
-				<button
 					class="flex items-center justify-center p-1.5 border-0 rounded-[5px] bg-transparent text-secondary hover:bg-surface-hover hover:text-primary transition-colors duration-150 cursor-pointer"
 					title="Settings"
 					@click="openOptions"
@@ -78,11 +70,33 @@
 			</template>
 		</div>
 
-		<!-- Inline status bar — only shown when not ready -->
+		<!-- Permission request -->
 		<div
-			v-if="status !== 'ready'"
-			class="shrink-0 px-3.5 py-2 border-t border-border"
+			v-if="permissionRequest"
+			class="shrink-0 px-3.5 py-3 border-t border-border bg-surface-2"
 		>
+			<p class="text-xs font-medium text-primary mb-0.5">
+				Allow <span class="text-accent">{{ permissionRequest.toolName }}</span>?
+			</p>
+			<p class="text-xs text-muted mb-2.5">The model wants to use this tool.</p>
+			<div class="flex gap-2">
+				<button
+					class="flex-1 py-1.5 text-xs rounded-lg border border-border text-secondary hover:bg-surface-hover transition-colors duration-150 cursor-pointer bg-transparent"
+					@click="grantPermission(false)"
+				>
+					Deny
+				</button>
+				<button
+					class="flex-1 py-1.5 text-xs rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors duration-150 cursor-pointer border-0"
+					@click="grantPermission(true)"
+				>
+					Allow
+				</button>
+			</div>
+		</div>
+
+		<!-- Inline status bar — only shown when not ready -->
+		<div v-if="status !== 'ready'" class="shrink-0 px-3.5 py-2 border-t border-border">
 			<!-- Error -->
 			<div v-if="status === 'error'" class="flex items-center justify-between gap-2">
 				<div class="flex items-center gap-1.5 min-w-0">
@@ -156,8 +170,8 @@
 </template>
 
 <script setup lang="ts">
-import { AlertCircle, ArrowUp, FileText, RotateCcw, Settings, Sparkles, Square } from '@lucide/vue'
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { AlertCircle, ArrowUp, RotateCcw, Settings, Sparkles, Square } from '@lucide/vue'
+import { nextTick, ref, watch } from 'vue'
 import { browser } from 'wxt/browser'
 
 import MarkdownContent from '../../components/MarkdownContent.vue'
@@ -165,24 +179,24 @@ import ModelChooser from '../../components/ModelChooser.vue'
 import ToolCallMessage from '../../components/ToolCallMessage.vue'
 import Textarea from '../../components/Textarea.vue'
 import { useAI } from '../../composables/useAI'
-import { getSettings, saveSettings } from '../../helpers/settings'
 
-const { messages, status, errorMessage, isStreaming, initProgress, initStatus, initialize, send, stop, clear } =
-	useAI()
+const {
+	messages,
+	status,
+	errorMessage,
+	isStreaming,
+	initProgress,
+	initStatus,
+	permissionRequest,
+	grantPermission,
+	initialize,
+	send,
+	stop,
+	clear,
+} = useAI()
 
 const inputText = ref('')
 const messagesEl = ref<HTMLElement | null>(null)
-const pageContextEnabled = ref(false)
-
-onMounted(async () => {
-	const settings = await getSettings()
-	pageContextEnabled.value = settings.includePageContext
-})
-
-async function togglePageContext(): Promise<void> {
-	pageContextEnabled.value = !pageContextEnabled.value
-	await saveSettings({ includePageContext: pageContextEnabled.value })
-}
 
 initialize()
 
@@ -218,7 +232,11 @@ watch(
 
 @keyframes blink {
 	0%,
-	100% { opacity: 1; }
-	50% { opacity: 0; }
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
 }
 </style>

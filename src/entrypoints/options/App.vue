@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { Cpu, Palette, Sparkles } from '@lucide/vue'
+import { Cpu, Palette, Sparkles, Wrench } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { browser } from 'wxt/browser'
 
@@ -52,6 +52,7 @@ const version = browser.runtime.getManifest().version
 
 const tabs = [
 	{ id: 'models', label: 'AI Models', icon: Cpu },
+	{ id: 'tools', label: 'Tools', icon: Wrench },
 	{ id: 'appearance', label: 'Appearance', icon: Palette },
 ]
 </script>

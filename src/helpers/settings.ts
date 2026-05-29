@@ -5,13 +5,13 @@ import { WEBLLM_MODELS } from '../ai/types'
 export interface ExtensionSettings {
 	webllmModel: string
 	theme: 'system' | 'light' | 'dark'
-	includePageContext: boolean
+	enabledTools: string[]
 }
 
 const defaults: ExtensionSettings = {
 	webllmModel: WEBLLM_MODELS[0].id,
 	theme: 'system',
-	includePageContext: false,
+	enabledTools: [],
 }
 
 export async function getSettings(): Promise<ExtensionSettings> {
