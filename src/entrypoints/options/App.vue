@@ -31,10 +31,10 @@
 
 <script setup lang="ts">
 import { Cpu, Palette, Wrench } from '@lucide/vue'
-import Logo from '../../assets/logo.svg?component'
 import { useRoute, useRouter } from 'vue-router'
 import { browser } from 'wxt/browser'
 
+import Logo from '../../assets/logo.svg?component'
 import SidebarTab from '../../components/options/SidebarTab.vue'
 import { useSettings } from '../../composables/useSettings'
 

@@ -129,11 +129,10 @@
 			<div class="flex items-end gap-2">
 				<Textarea
 					v-model="inputText"
-					:placeholder="status === 'ready' ? 'Ask anything…' : 'Loading model…'"
+					placeholder="Ask anything"
 					rows="1"
 					class="flex-1 text-sm min-h-9 max-h-28"
 					style="field-sizing: content"
-					:disabled="status !== 'ready' || isStreaming"
 					@keydown.enter.exact.prevent="handleSend"
 					@keydown.enter.shift.exact="() => {}"
 				/>
@@ -170,7 +169,6 @@ import { nextTick, ref, watch } from 'vue'
 import { browser } from 'wxt/browser'
 
 import Logo from '../../assets/logo.svg?component'
-
 import MarkdownContent from '../../components/MarkdownContent.vue'
 import ModelChooser from '../../components/ModelChooser.vue'
 import Textarea from '../../components/Textarea.vue'
