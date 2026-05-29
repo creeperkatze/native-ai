@@ -1,6 +1,23 @@
 import tailwindcss from '@tailwindcss/vite'
+import { copyFileSync, mkdirSync, readdirSync } from 'fs'
+import { createRequire } from 'module'
+import path from 'path'
 import svgLoader from 'vite-svg-loader'
 import { defineConfig } from 'wxt'
+
+function findOrtDist(): string {
+	const req = createRequire(import.meta.url)
+	try {
+		const pkgPath = req.resolve('onnxruntime-web/package.json')
+		return path.join(path.dirname(pkgPath), 'dist')
+	} catch {
+		// pnpm isolated linker: search the .pnpm directory
+		const pnpmDir = path.join(process.cwd(), 'node_modules/.pnpm')
+		const entry = readdirSync(pnpmDir).find((e) => e.startsWith('onnxruntime-web@'))
+		if (!entry) throw new Error('onnxruntime-web not found in .pnpm')
+		return path.join(pnpmDir, entry, 'node_modules/onnxruntime-web/dist')
+	}
+}
 
 export default defineConfig({
 	srcDir: 'src',
@@ -15,6 +32,19 @@ export default defineConfig({
 					handler: () => [
 						{ tag: 'script', injectTo: 'head-prepend', attrs: { src: '/theme-init.js' } },
 					],
+				},
+			},
+			{
+				name: 'copy-ort-wasm',
+				buildStart() {
+					const ortDist = findOrtDist()
+					const destDir = path.join(process.cwd(), 'src/public/ort')
+					mkdirSync(destDir, { recursive: true })
+					for (const file of readdirSync(ortDist)) {
+						if (file.startsWith('ort-wasm-simd-threaded.')) {
+							copyFileSync(path.join(ortDist, file), path.join(destDir, file))
+						}
+					}
 				},
 			},
 		],

@@ -1,6 +1,14 @@
+import { env } from '@huggingface/transformers'
 import { browser } from 'wxt/browser'
 
 import type { ChatMessage, ToolDefinition } from '../../ai/types'
+
+// Load ONNX Runtime from the extension's bundled files instead of CDN
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+;(env.backends.onnx as any).wasm = {
+	...(env.backends.onnx.wasm ?? {}),
+	wasmPaths: (browser.runtime.getURL as (p: string) => string)('/ort/'),
+}
 
 type EngineState = 'idle' | 'loading' | 'ready' | 'error'
 
