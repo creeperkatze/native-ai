@@ -1,7 +1,6 @@
 import { browser } from 'wxt/browser'
 
 import type { ChatMessage, ToolDefinition } from '../../ai/types'
-import { getSettings } from '../../helpers/settings'
 
 type EngineState = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -204,8 +203,3 @@ async function runChat(
 	}
 }
 
-// Auto-start model loading as soon as the offscreen document is created,
-// so it's ready (or already downloading) before the popup opens.
-getSettings().then((settings) => {
-	initModel(settings.webllmModel)
-})

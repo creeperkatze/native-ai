@@ -114,7 +114,7 @@
 			<!-- Initializing / idle -->
 			<template v-else>
 				<div class="flex items-center justify-between gap-2 mb-1.5">
-					<span class="text-xs text-muted truncate">{{ initStatus || 'Starting…' }}</span>
+					<span class="text-xs text-muted truncate">{{ initStatus || 'Loading model…' }}</span>
 					<span v-if="initProgress > 0" class="text-xs text-muted shrink-0">
 						{{ Math.round(initProgress * 100) }}%
 					</span>

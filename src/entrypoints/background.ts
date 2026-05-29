@@ -1,48 +1,55 @@
+import { browser } from 'wxt/browser'
+
+import { getSettings } from '../helpers/settings'
+
+// chrome is a global in extension service workers but not typed when the file is a module
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const chrome: any
+
 export default defineBackground(() => {
 	async function ensureOffscreen(): Promise<void> {
-		// chrome.runtime.getContexts and chrome.offscreen are Chrome 116+ APIs
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const cr = chrome as any
-		if (!cr.offscreen) return
+		if (!chrome.offscreen) return
 
-		const contexts = await cr.runtime.getContexts({
+		const contexts = await chrome.runtime.getContexts({
 			contextTypes: ['OFFSCREEN_DOCUMENT'],
 		})
 		if (contexts.length > 0) return
 
-		await cr.offscreen.createDocument({
-			url: chrome.runtime.getURL('/offscreen.html'),
+		await chrome.offscreen.createDocument({
+			url: browser.runtime.getURL('/offscreen.html'),
 			reasons: ['WORKERS'],
 			justification: 'Run WebLLM model inference via WebGPU in a persistent context',
 		})
+
+		// Offscreen has no storage access — background reads the setting and triggers the load
+		const settings = await getSettings()
+		browser.runtime
+			.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId: settings.webllmModel })
+			.catch(() => {})
 	}
 
 	function setupSidePanel() {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const cr = chrome as any
-		if (cr.sidePanel) {
-			cr.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
+		if (chrome.sidePanel) {
+			chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
 		}
 	}
 
-	// Create offscreen document and configure side panel on install/startup
-	chrome.runtime.onInstalled.addListener(() => {
+	browser.runtime.onInstalled.addListener(() => {
 		setupSidePanel()
 		ensureOffscreen().catch(console.error)
 	})
-	chrome.runtime.onStartup.addListener(() => {
+	browser.runtime.onStartup.addListener(() => {
 		setupSidePanel()
 		ensureOffscreen().catch(console.error)
 	})
 
-	// Popup can also explicitly ask for it (handles first-open after install)
-	chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-		if (message.target !== 'background') return
-		if (message.type === 'ensure-offscreen') {
+	browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+		if ((message as { target?: string }).target !== 'background') return
+		if ((message as { type: string }).type === 'ensure-offscreen') {
 			ensureOffscreen()
 				.then(() => sendResponse({ ready: true }))
 				.catch((e) => sendResponse({ ready: false, error: String(e) }))
-			return true // keep channel open for async response
+			return true
 		}
 	})
 })

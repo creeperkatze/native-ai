@@ -112,7 +112,11 @@ export function useChat() {
 			.sendMessage({ type: 'webllm:check', target: 'offscreen' })
 			.catch(() => null)
 
-		if (!state) return
+		// Offscreen not ready yet — mark initializing so the bar shows; broadcasts will fill in text
+		if (!state || state.state === 'idle') {
+			status.value = 'initializing'
+			return
+		}
 
 		if (state.state === 'ready' && state.modelId) {
 			backend = new WebLLMBackend(state.modelId as string)
@@ -123,14 +127,11 @@ export function useChat() {
 		} else if (state.state === 'loading') {
 			status.value = 'initializing'
 			initProgress.value = (state.progress as number) ?? 0
-			initStatus.value = (state.statusText as string) ?? 'Loading…'
+			// show whatever WebLLM has reported so far; broadcasts keep it updated
+			initStatus.value = (state.statusText as string) || ''
 		} else if (state.state === 'error') {
 			status.value = 'error'
 			errorMessage.value = (state.error as string) || 'Failed to load model'
-		} else {
-			// idle — offscreen auto-start will begin loading shortly and broadcast progress
-			status.value = 'initializing'
-			initStatus.value = 'Starting…'
 		}
 	}
 
