@@ -1,10 +1,9 @@
 import { browser } from 'wxt/browser'
 
 import type { FromOffscreenMessage } from '../messages'
-import type { AIBackend, BackendAvailability, ChatMessage } from '../types'
+import type { AIBackend, ChatMessage, Tool } from '../types'
 
 export class WebLLMBackend implements AIBackend {
-	readonly id = 'webllm' as const
 	readonly name = 'WebLLM'
 
 	private modelId: string
@@ -13,7 +12,7 @@ export class WebLLMBackend implements AIBackend {
 		this.modelId = modelId
 	}
 
-	async checkAvailability(): Promise<BackendAvailability> {
+	async checkAvailability(): Promise<'readily' | 'after-download' | 'unavailable'> {
 		if (typeof navigator === 'undefined' || !('gpu' in navigator)) return 'unavailable'
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,21 +24,15 @@ export class WebLLMBackend implements AIBackend {
 		return 'after-download'
 	}
 
-	async initialize(
-		onProgress?: (progress: number, status: string) => void,
-		_systemPrompt?: string,
-	): Promise<void> {
-		// Ensure the offscreen document is alive (wakes background if needed)
+	async initialize(onProgress?: (progress: number, status: string) => void): Promise<void> {
 		await browser.runtime.sendMessage({ type: 'ensure-offscreen', target: 'background' })
 
-		// Check if model is already loaded in the offscreen document
 		const status = await browser.runtime
 			.sendMessage({ type: 'webllm:check', target: 'offscreen' })
 			.catch(() => null)
 
 		if (status?.state === 'ready' && status.modelId === this.modelId) return
 
-		// Send init and wait for webllm:ready / webllm:error
 		return new Promise((resolve, reject) => {
 			const listener = (message: FromOffscreenMessage) => {
 				if (message.type === 'webllm:progress') {
@@ -65,6 +58,7 @@ export class WebLLMBackend implements AIBackend {
 		messages: ChatMessage[],
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
+		tools?: Tool[],
 	): Promise<void> {
 		const chatId = crypto.randomUUID()
 
@@ -72,7 +66,31 @@ export class WebLLMBackend implements AIBackend {
 			const listener = (message: FromOffscreenMessage) => {
 				if ('chatId' in message && message.chatId !== chatId) return
 
-				if (message.type === 'webllm:chunk') {
+				if (message.type === 'webllm:tool_call') {
+					const tool = tools?.find((t) => t.definition.function.name === message.name)
+					void (async () => {
+						let result = 'Tool execution failed.'
+						if (tool) {
+							try {
+								const args = message.args
+									? (JSON.parse(message.args) as Record<string, unknown>)
+									: {}
+								result = await tool.execute(args)
+							} catch {
+								result = 'Tool execution failed.'
+							}
+						}
+						browser.runtime
+							.sendMessage({
+								type: 'webllm:tool_result',
+								target: 'offscreen',
+								chatId,
+								toolCallId: message.toolCallId,
+								result,
+							})
+							.catch(() => {})
+					})()
+				} else if (message.type === 'webllm:chunk') {
 					onChunk(message.content)
 				} else if (message.type === 'webllm:done') {
 					browser.runtime.onMessage.removeListener(listener)
@@ -94,7 +112,13 @@ export class WebLLMBackend implements AIBackend {
 			})
 
 			browser.runtime
-				.sendMessage({ type: 'webllm:chat', target: 'offscreen', chatId, messages })
+				.sendMessage({
+					type: 'webllm:chat',
+					target: 'offscreen',
+					chatId,
+					messages,
+					tools: tools?.map((t) => t.definition),
+				})
 				.catch(() => {})
 		})
 	}

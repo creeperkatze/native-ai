@@ -3,22 +3,33 @@ export interface ChatMessage {
 	content: string
 }
 
-export type BackendId = 'chrome-ai' | 'webllm'
+export interface ToolDefinition {
+	type: 'function'
+	function: {
+		name: string
+		description: string
+		parameters?: {
+			type: 'object'
+			properties: Record<string, unknown>
+			required?: string[]
+		}
+	}
+}
 
-export type BackendAvailability = 'readily' | 'after-download' | 'unavailable'
+export interface Tool {
+	definition: ToolDefinition
+	execute(args: Record<string, unknown>): Promise<string>
+}
 
 export interface AIBackend {
-	readonly id: BackendId
 	readonly name: string
-	checkAvailability(): Promise<BackendAvailability>
-	initialize(
-		onProgress?: (progress: number, status: string) => void,
-		systemPrompt?: string,
-	): Promise<void>
+	checkAvailability(): Promise<'readily' | 'after-download' | 'unavailable'>
+	initialize(onProgress?: (progress: number, status: string) => void): Promise<void>
 	chat(
 		messages: ChatMessage[],
 		onChunk: (chunk: string) => void,
 		signal?: AbortSignal,
+		tools?: Tool[],
 	): Promise<void>
 	destroy(): void
 }
@@ -30,8 +41,8 @@ export interface WebLLMModelInfo {
 }
 
 export const WEBLLM_MODELS: WebLLMModelInfo[] = [
-	{ id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen 2.5 1.5B', sizeMb: 1000 },
-	{ id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', label: 'Llama 3.2 3B', sizeMb: 1900 },
-	{ id: 'gemma-2-2b-it-q4f16_1-MLC', label: 'Gemma 2 2B', sizeMb: 1500 },
-	{ id: 'Phi-3.5-mini-instruct-q4f16_1-MLC', label: 'Phi-3.5 Mini', sizeMb: 2200 },
+	{ id: 'Hermes-3-Llama-3.1-8B-q4f16_1-MLC', label: 'Hermes 3 · Llama 3.1 8B', sizeMb: 4800 },
+	{ id: 'Hermes-3-Llama-3.1-8B-q4f32_1-MLC', label: 'Hermes 3 · Llama 3.1 8B (fp32)', sizeMb: 8500 },
+	{ id: 'Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC', label: 'Hermes 2 Pro · Llama 3 8B', sizeMb: 4800 },
+	{ id: 'Hermes-2-Pro-Mistral-7B-q4f16_1-MLC', label: 'Hermes 2 Pro · Mistral 7B', sizeMb: 4200 },
 ]

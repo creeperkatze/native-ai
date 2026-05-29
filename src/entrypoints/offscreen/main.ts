@@ -1,5 +1,7 @@
+import { browser } from 'wxt/browser'
+
+import type { ChatMessage, ToolDefinition } from '../../ai/types'
 import { getSettings } from '../../helpers/settings'
-import type { ChatMessage } from '../../ai/types'
 
 type EngineState = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -10,12 +12,12 @@ let loadedModelId: string | null = null
 let abortControllers = new Map<string, AbortController>()
 
 function broadcast(message: object) {
-	chrome.runtime.sendMessage(message).catch(() => {
+	browser.runtime.sendMessage(message).catch(() => {
 		// Popup may be closed — ignore
 	})
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 	if (message.target !== 'offscreen') return
 
 	if (message.type === 'webllm:check') {
@@ -24,20 +26,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 	}
 
 	if (message.type === 'webllm:init') {
-		initModel(message.modelId)
+		initModel(message.modelId as string)
 		sendResponse({ ok: true })
 		return
 	}
 
 	if (message.type === 'webllm:chat') {
-		runChat(message.chatId, message.messages)
+		runChat(
+			message.chatId as string,
+			message.messages as ChatMessage[],
+			message.tools as ToolDefinition[] | undefined,
+		)
 		sendResponse({ ok: true })
 		return
 	}
 
 	if (message.type === 'webllm:abort') {
-		abortControllers.get(message.chatId)?.abort()
-		abortControllers.delete(message.chatId)
+		abortControllers.get(message.chatId as string)?.abort()
+		abortControllers.delete(message.chatId as string)
 		sendResponse({ ok: true })
 		return
 	}
@@ -57,7 +63,7 @@ async function initModel(modelId: string): Promise<void> {
 		const webllm = await import('@mlc-ai/web-llm')
 		engine = await webllm.CreateMLCEngine(modelId, {
 			initProgressCallback: (info: { progress: number; text: string }) => {
-				broadcast({ type: 'webllm:progress', progress: info.progress, status: info.text })
+				broadcast({ type: 'webllm:progress', progress: info.progress, status: info.text, modelId })
 			},
 		})
 		loadedModelId = modelId
@@ -72,7 +78,11 @@ async function initModel(modelId: string): Promise<void> {
 	}
 }
 
-async function runChat(chatId: string, messages: ChatMessage[]): Promise<void> {
+async function runChat(
+	chatId: string,
+	messages: ChatMessage[],
+	tools?: ToolDefinition[],
+): Promise<void> {
 	if (!engine) {
 		broadcast({ type: 'webllm:error', chatId, message: 'Engine not initialized' })
 		return
@@ -82,8 +92,75 @@ async function runChat(chatId: string, messages: ChatMessage[]): Promise<void> {
 	abortControllers.set(chatId, controller)
 
 	try {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const allMessages: any[] = [...messages]
+
+		if (tools && tools.length > 0) {
+			// Non-streaming first pass so we can inspect tool_calls before emitting output
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const firstPass: any = await engine.chat.completions.create({
+				messages: allMessages,
+				tools,
+				stream: false,
+			})
+
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const assistantMsg: any = firstPass.choices[0]?.message
+
+			if (assistantMsg?.tool_calls?.length > 0 && !controller.signal.aborted) {
+				// Normalize content to '' — the engine rejects null content in history
+				allMessages.push({ ...assistantMsg, content: assistantMsg.content ?? '' })
+
+				for (const toolCall of assistantMsg.tool_calls) {
+					if (controller.signal.aborted) break
+
+					broadcast({
+						type: 'webllm:tool_call',
+						chatId,
+						toolCallId: toolCall.id,
+						name: toolCall.function.name,
+						args: toolCall.function.arguments,
+					})
+
+					// Wait for popup to execute the tool and send back the result
+					const result = await new Promise<string>((resolve) => {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const listener = (msg: any) => {
+							if (
+								msg.type === 'webllm:tool_result' &&
+								msg.chatId === chatId &&
+								msg.toolCallId === toolCall.id
+							) {
+								browser.runtime.onMessage.removeListener(listener)
+								resolve(msg.result as string)
+							}
+						}
+						browser.runtime.onMessage.addListener(listener)
+						controller.signal.addEventListener(
+							'abort',
+							() => {
+								browser.runtime.onMessage.removeListener(listener)
+								resolve('')
+							},
+							{ once: true },
+						)
+					})
+
+					allMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: result })
+				}
+			} else if (assistantMsg?.content && !controller.signal.aborted) {
+				// Model answered directly without calling any tool — emit and finish
+				broadcast({ type: 'webllm:chunk', chatId, content: assistantMsg.content })
+				broadcast({ type: 'webllm:done', chatId })
+				return
+			}
+		}
+
+		if (controller.signal.aborted) return
+
+		// Streaming pass — either after tool results or when no tools were requested
 		const reply = await engine.chat.completions.create({
-			messages,
+			messages: allMessages,
 			stream: true,
 		})
 
@@ -112,6 +189,5 @@ async function runChat(chatId: string, messages: ChatMessage[]): Promise<void> {
 // Auto-start model loading as soon as the offscreen document is created,
 // so it's ready (or already downloading) before the popup opens.
 getSettings().then((settings) => {
-	if (settings.backend === 'chrome-ai') return
 	initModel(settings.webllmModel)
 })

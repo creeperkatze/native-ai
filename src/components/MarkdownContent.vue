@@ -29,12 +29,18 @@ const rendered = computed(() => marked.parse(props.content) as string)
 .md :deep(p:last-child) {
 	margin-bottom: 0;
 }
-.md :deep(ul),
+.md :deep(ul) {
+	list-style-type: disc;
+	padding-left: 1.25em;
+	margin: 0.25em 0;
+}
 .md :deep(ol) {
+	list-style-type: decimal;
 	padding-left: 1.25em;
 	margin: 0.25em 0;
 }
 .md :deep(li) {
+	display: list-item;
 	margin: 0.1em 0;
 }
 .md :deep(li p) {

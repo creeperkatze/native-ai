@@ -1,83 +1,95 @@
 <template>
 	<div class="max-w-xl px-8 py-8">
 		<h1 class="text-base font-semibold text-primary">AI Models</h1>
-		<p class="text-sm text-secondary mt-1">Choose how Local AI runs models on your device.</p>
+		<p class="text-sm text-secondary mt-1">
+			Download models to use them. Select the active model from the popup.
+		</p>
 
-		<div v-if="settings" class="mt-6 flex flex-col gap-6">
-			<!-- Backend selector -->
+		<div v-if="!loading" class="mt-6 flex flex-col gap-6">
+			<!-- Model library -->
 			<section>
-				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Backend</h2>
+				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">WebLLM</h2>
 				<div class="flex flex-col gap-2">
-					<label
-						v-for="opt in backendOptions"
-						:key="opt.value"
-						class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors duration-150"
-						:class="
-							settings.backend === opt.value
-								? 'border-accent-border bg-accent-bg'
-								: 'border-border bg-surface-raised hover:bg-surface-hover'
-						"
-					>
-						<input
-							type="radio"
-							name="backend"
-							:value="opt.value"
-							:checked="settings.backend === opt.value"
-							class="mt-0.5 accent-[var(--color-accent)]"
-							@change="update({ backend: opt.value as ExtensionSettings['backend'] })"
-						/>
-						<div class="min-w-0">
-							<div class="text-sm font-medium text-primary">{{ opt.label }}</div>
-							<div class="text-xs text-secondary mt-0.5">{{ opt.description }}</div>
-						</div>
-					</label>
-				</div>
-			</section>
-
-			<!-- WebLLM model picker (shown when webllm or auto is selected) -->
-			<section v-if="settings.backend !== 'chrome-ai'">
-				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">WebLLM Model</h2>
-				<p class="text-xs text-secondary mb-3">
-					Models are downloaded once and cached locally. Requires WebGPU support.
-				</p>
-				<div class="flex flex-col gap-2">
-					<label
+					<div
 						v-for="model in WEBLLM_MODELS"
 						:key="model.id"
-						class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors duration-150"
-						:class="
-							settings.webllmModel === model.id
-								? 'border-accent-border bg-accent-bg'
-								: 'border-border bg-surface-raised hover:bg-surface-hover'
-						"
+						class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-surface-raised"
 					>
-						<input
-							type="radio"
-							name="webllmModel"
-							:value="model.id"
-							:checked="settings.webllmModel === model.id"
-							class="accent-[var(--color-accent)]"
-							@change="update({ webllmModel: model.id })"
-						/>
-						<div class="flex-1 min-w-0">
-							<div class="text-sm font-medium text-primary">{{ model.label }}</div>
-							<div class="text-xs text-muted">~{{ formatSize(model.sizeMb) }}</div>
+						<div class="flex items-center gap-3">
+							<!-- Status dot -->
+							<div class="w-1.5 h-1.5 rounded-full shrink-0 mt-0.5"
+								:class="cachedIds.has(model.id) ? 'bg-green-500' : 'bg-zinc-300 dark:bg-zinc-600'"
+							/>
+
+							<!-- Info -->
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="text-sm font-medium text-primary">{{ model.label }}</span>
+									<span
+										v-if="model.id === currentModelId && cachedIds.has(model.id)"
+										class="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-bg text-accent border border-accent-border"
+									>Active</span>
+								</div>
+								<div class="text-xs text-muted mt-0.5">~{{ formatSize(model.sizeMb) }}</div>
+							</div>
+
+							<!-- Action button -->
+							<div class="shrink-0">
+								<button
+									v-if="cachedIds.has(model.id)"
+									class="text-xs px-2.5 py-1 rounded-md border border-border text-secondary hover:border-red-400 hover:text-red-500 transition-colors duration-150 cursor-pointer bg-transparent"
+									:disabled="downloadingId !== null"
+									@click="deleteModel(model.id)"
+								>
+									Delete
+								</button>
+								<button
+									v-else-if="downloadingId !== model.id"
+									class="text-xs px-2.5 py-1 rounded-md border border-accent-border text-accent bg-accent-bg hover:bg-accent hover:text-white transition-colors duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+									:disabled="downloadingId !== null"
+									@click="downloadModel(model.id)"
+								>
+									Download
+								</button>
+							</div>
 						</div>
-					</label>
+
+						<!-- Download progress -->
+						<div v-if="downloadingId === model.id" class="flex flex-col gap-1.5">
+							<div class="h-1 w-full bg-surface-3 rounded-full overflow-hidden">
+								<div
+									class="h-full bg-accent rounded-full transition-all duration-300"
+									:class="downloadProgress > 0 ? '' : 'animate-pulse w-full opacity-40'"
+									:style="downloadProgress > 0 ? { width: `${Math.round(downloadProgress * 100)}%` } : {}"
+								/>
+							</div>
+							<div class="flex items-center justify-between">
+								<span class="text-xs text-muted">Downloading…</span>
+								<span v-if="downloadProgress > 0" class="text-xs text-muted">
+									{{ Math.round(downloadProgress * 100) }}%
+								</span>
+							</div>
+						</div>
+					</div>
 				</div>
 			</section>
 
-			<!-- System prompt -->
+			<!-- Page context -->
 			<section>
-				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">System Prompt</h2>
-				<Textarea
-					:model-value="settings.systemPrompt"
-					rows="4"
-					placeholder="You are a helpful assistant."
-					class="w-full text-sm"
-					@update:model-value="debouncedSavePrompt"
-				/>
-				<p class="text-xs text-muted mt-1.5">Sent with every conversation as context for the AI.</p>
+				<h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Page Context</h2>
+				<div class="flex items-center justify-between p-3 rounded-lg border border-border bg-surface-raised">
+					<div class="min-w-0">
+						<div class="text-sm font-medium text-primary">Include page content</div>
+						<div class="text-xs text-secondary mt-0.5">
+							The model can call a tool to read the current page when relevant.
+						</div>
+					</div>
+					<Toggle
+						:model-value="settings?.includePageContext ?? false"
+						class="ml-4 shrink-0"
+						@update:model-value="update({ includePageContext: $event })"
+					/>
+				</div>
 			</section>
 		</div>
 	</div>
@@ -85,37 +97,15 @@
 
 <script setup lang="ts">
 import { WEBLLM_MODELS } from '../../../ai/types'
-import Textarea from '../../../components/Textarea.vue'
+import Toggle from '../../../components/Toggle.vue'
+import { useModelStore } from '../../../composables/useModelStore'
 import { useSettings } from '../../../composables/useSettings'
-import type { ExtensionSettings } from '../../../helpers/settings'
 
 const { settings, update } = useSettings()
-
-const backendOptions = [
-	{
-		value: 'auto',
-		label: 'Auto',
-		description: 'Use Chrome Built-in AI if available, otherwise fall back to WebLLM.',
-	},
-	{
-		value: 'chrome-ai',
-		label: 'Chrome Built-in AI',
-		description: 'Uses Gemini Nano built into Chrome. No download required. Chrome 127+ only.',
-	},
-	{
-		value: 'webllm',
-		label: 'WebLLM',
-		description: 'Runs open-source models via WebGPU. Works in any WebGPU-capable browser.',
-	},
-]
+const { loading, cachedIds, downloadingId, downloadProgress, currentModelId, downloadModel, deleteModel } =
+	useModelStore()
 
 function formatSize(mb: number): string {
 	return mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${mb} MB`
-}
-
-let promptTimer: ReturnType<typeof setTimeout> | null = null
-function debouncedSavePrompt(value: string): void {
-	if (promptTimer) clearTimeout(promptTimer)
-	promptTimer = setTimeout(() => update({ systemPrompt: value }), 500)
 }
 </script>

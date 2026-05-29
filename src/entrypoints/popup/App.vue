@@ -9,19 +9,7 @@
 				<span class="font-semibold text-primary text-sm">Local AI</span>
 			</div>
 			<div class="flex items-center gap-1">
-				<!-- Backend badge -->
-				<div class="flex items-center gap-1.5 px-2 py-1 rounded-[5px] bg-surface-3">
-					<span
-						class="w-1.5 h-1.5 rounded-full shrink-0"
-						:class="{
-							'bg-green-500': status === 'ready',
-							'bg-amber-400 animate-pulse': status === 'initializing',
-							'bg-red-500': status === 'error',
-							'bg-zinc-400': status === 'idle',
-						}"
-					></span>
-					<span class="text-xs text-muted">{{ backendName || 'Local AI' }}</span>
-				</div>
+				<ModelChooser :ai-status="status" @change="handleModelChange" />
 
 				<button
 					v-if="messages.length > 0"
@@ -30,6 +18,14 @@
 					@click="clear"
 				>
 					<RotateCcw class="size-4" />
+				</button>
+				<button
+					class="flex items-center justify-center p-1.5 border-0 rounded-[5px] bg-transparent transition-colors duration-150 cursor-pointer"
+					:class="pageContextEnabled ? 'text-accent' : 'text-secondary hover:bg-surface-hover hover:text-primary'"
+					:title="pageContextEnabled ? 'Page context on — reopen popup to refresh' : 'Include page content'"
+					@click="togglePageContext"
+				>
+					<FileText class="size-4" />
 				</button>
 				<button
 					class="flex items-center justify-center p-1.5 border-0 rounded-[5px] bg-transparent text-secondary hover:bg-surface-hover hover:text-primary transition-colors duration-150 cursor-pointer"
@@ -65,8 +61,16 @@
 					<div
 						class="max-w-[85%] px-3 py-2 rounded-2xl rounded-tl-sm bg-surface-3 border border-border text-primary text-sm leading-relaxed"
 					>
+						<ToolCallMessage
+							v-if="msg.toolCall"
+							:name="msg.toolCall.name"
+							:done="msg.toolCall.done"
+							:class="msg.content ? 'mb-2' : ''"
+						/>
 						<MarkdownContent v-if="msg.content" :content="msg.content" />
-						<span v-else-if="isStreaming && i === messages.length - 1" class="streaming-cursor"
+						<span
+							v-else-if="isStreaming && i === messages.length - 1 && (!msg.toolCall || msg.toolCall.done)"
+							class="streaming-cursor"
 							>▋</span
 						>
 					</div>
@@ -152,21 +156,40 @@
 </template>
 
 <script setup lang="ts">
-import { AlertCircle, ArrowUp, RotateCcw, Settings, Sparkles, Square } from '@lucide/vue'
-import { nextTick, ref, watch } from 'vue'
+import { AlertCircle, ArrowUp, FileText, RotateCcw, Settings, Sparkles, Square } from '@lucide/vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { browser } from 'wxt/browser'
 
 import MarkdownContent from '../../components/MarkdownContent.vue'
+import ModelChooser from '../../components/ModelChooser.vue'
+import ToolCallMessage from '../../components/ToolCallMessage.vue'
 import Textarea from '../../components/Textarea.vue'
 import { useAI } from '../../composables/useAI'
+import { getSettings, saveSettings } from '../../helpers/settings'
 
-const { messages, status, errorMessage, isStreaming, initProgress, initStatus, backendName, initialize, send, stop, clear } =
+const { messages, status, errorMessage, isStreaming, initProgress, initStatus, initialize, send, stop, clear } =
 	useAI()
 
 const inputText = ref('')
 const messagesEl = ref<HTMLElement | null>(null)
+const pageContextEnabled = ref(false)
+
+onMounted(async () => {
+	const settings = await getSettings()
+	pageContextEnabled.value = settings.includePageContext
+})
+
+async function togglePageContext(): Promise<void> {
+	pageContextEnabled.value = !pageContextEnabled.value
+	await saveSettings({ includePageContext: pageContextEnabled.value })
+}
 
 initialize()
+
+async function handleModelChange(): Promise<void> {
+	clear()
+	await initialize()
+}
 
 async function handleSend(): Promise<void> {
 	const text = inputText.value.trim()

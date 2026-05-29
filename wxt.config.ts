@@ -31,7 +31,7 @@ export default defineConfig({
 			64: 'icon-64.png',
 			128: 'icon-128.png',
 		},
-		permissions: ['storage', 'activeTab', 'offscreen'],
+		permissions: ['storage', 'activeTab', 'offscreen', 'scripting'],
 		host_permissions: ['https://huggingface.co/*', 'https://raw.githubusercontent.com/*'],
 		options_ui: { open_in_tab: true },
 		content_security_policy: {

@@ -3,19 +3,13 @@ import { browser } from 'wxt/browser'
 import { WEBLLM_MODELS } from '../ai/types'
 
 export interface ExtensionSettings {
-	backend: 'chrome-ai' | 'webllm' | 'auto'
 	webllmModel: string
-	systemPrompt: string
-	temperature: number
 	theme: 'system' | 'light' | 'dark'
 	includePageContext: boolean
 }
 
 const defaults: ExtensionSettings = {
-	backend: 'auto',
 	webllmModel: WEBLLM_MODELS[0].id,
-	systemPrompt: 'You are a helpful assistant.',
-	temperature: 0.7,
 	theme: 'system',
 	includePageContext: false,
 }
@@ -23,7 +17,12 @@ const defaults: ExtensionSettings = {
 export async function getSettings(): Promise<ExtensionSettings> {
 	const stored = await browser.storage.local.get('settings')
 	const patch = (stored.settings ?? {}) as Partial<ExtensionSettings>
-	return { ...defaults, ...patch }
+	const merged = { ...defaults, ...patch }
+	// Reset to default if stored model is no longer in the model list
+	if (!WEBLLM_MODELS.some((m) => m.id === merged.webllmModel)) {
+		merged.webllmModel = defaults.webllmModel
+	}
+	return merged
 }
 
 export async function saveSettings(settings: Partial<ExtensionSettings>): Promise<void> {
