@@ -33,7 +33,7 @@ export function useModelStore() {
 		downloadProgress.value = 0
 		try {
 			await browser.runtime.sendMessage({ type: 'ensure-offscreen', target: 'background' })
-			await browser.runtime.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId })
+			await browser.runtime.sendMessage({ type: 'ai:init', target: 'offscreen', modelId })
 		} catch {
 			// sendMessage errors are expected when no popup is listening; the offscreen handles it
 		}
@@ -52,10 +52,10 @@ export function useModelStore() {
 	}
 
 	const listener = (message: FromOffscreenMessage) => {
-		if (message.type === 'webllm:progress') {
+		if (message.type === 'ai:progress') {
 			downloadingId.value = message.modelId
 			downloadProgress.value = message.progress
-		} else if (message.type === 'webllm:ready') {
+		} else if (message.type === 'ai:ready') {
 			const next = new Set(cachedIds.value)
 			next.add(message.modelId)
 			cachedIds.value = next
@@ -63,7 +63,7 @@ export function useModelStore() {
 				downloadingId.value = null
 				downloadProgress.value = 0
 			}
-		} else if (message.type === 'webllm:error' && !message.chatId) {
+		} else if (message.type === 'ai:error' && !message.chatId) {
 			downloadingId.value = null
 			downloadProgress.value = 0
 		}

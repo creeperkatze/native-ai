@@ -28,19 +28,19 @@ export class TransformersBackend implements AIBackend {
 		await browser.runtime.sendMessage({ type: 'ensure-offscreen', target: 'background' })
 
 		const status = await browser.runtime
-			.sendMessage({ type: 'webllm:check', target: 'offscreen' })
+			.sendMessage({ type: 'ai:check', target: 'offscreen' })
 			.catch(() => null)
 
 		if (status?.state === 'ready' && status.modelId === this.modelId) return
 
 		return new Promise((resolve, reject) => {
 			const listener = (message: FromOffscreenMessage) => {
-				if (message.type === 'webllm:progress') {
+				if (message.type === 'ai:progress') {
 					onProgress?.(message.progress, message.status)
-				} else if (message.type === 'webllm:ready' && message.modelId === this.modelId) {
+				} else if (message.type === 'ai:ready' && message.modelId === this.modelId) {
 					browser.runtime.onMessage.removeListener(listener)
 					resolve()
-				} else if (message.type === 'webllm:error' && !message.chatId) {
+				} else if (message.type === 'ai:error' && !message.chatId) {
 					browser.runtime.onMessage.removeListener(listener)
 					reject(new Error(message.message))
 				}
@@ -49,7 +49,7 @@ export class TransformersBackend implements AIBackend {
 			browser.runtime.onMessage.addListener(listener)
 
 			browser.runtime
-				.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId: this.modelId })
+				.sendMessage({ type: 'ai:init', target: 'offscreen', modelId: this.modelId })
 				.catch(() => {})
 		})
 	}
@@ -66,7 +66,7 @@ export class TransformersBackend implements AIBackend {
 			const listener = (message: FromOffscreenMessage) => {
 				if ('chatId' in message && message.chatId !== chatId) return
 
-				if (message.type === 'webllm:tool_call') {
+				if (message.type === 'ai:tool_call') {
 					const tool = tools?.find((t) => t.definition.function.name === message.name)
 					void (async () => {
 						let result = 'Tool execution failed.'
@@ -82,7 +82,7 @@ export class TransformersBackend implements AIBackend {
 						}
 						browser.runtime
 							.sendMessage({
-								type: 'webllm:tool_result',
+								type: 'ai:tool_result',
 								target: 'offscreen',
 								chatId,
 								toolCallId: message.toolCallId,
@@ -90,12 +90,12 @@ export class TransformersBackend implements AIBackend {
 							})
 							.catch(() => {})
 					})()
-				} else if (message.type === 'webllm:chunk') {
+				} else if (message.type === 'ai:chunk') {
 					onChunk(message.content)
-				} else if (message.type === 'webllm:done') {
+				} else if (message.type === 'ai:done') {
 					browser.runtime.onMessage.removeListener(listener)
 					resolve()
-				} else if (message.type === 'webllm:error') {
+				} else if (message.type === 'ai:error') {
 					browser.runtime.onMessage.removeListener(listener)
 					reject(new Error(message.message))
 				}
@@ -106,14 +106,14 @@ export class TransformersBackend implements AIBackend {
 			signal?.addEventListener('abort', () => {
 				browser.runtime.onMessage.removeListener(listener)
 				browser.runtime
-					.sendMessage({ type: 'webllm:abort', target: 'offscreen', chatId })
+					.sendMessage({ type: 'ai:abort', target: 'offscreen', chatId })
 					.catch(() => {})
 				resolve()
 			})
 
 			browser.runtime
 				.sendMessage({
-					type: 'webllm:chat',
+					type: 'ai:chat',
 					target: 'offscreen',
 					chatId,
 					messages,

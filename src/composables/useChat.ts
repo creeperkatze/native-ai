@@ -101,17 +101,17 @@ export function useChat() {
 
 	// Persistent listener: syncs this composable instance to whatever the offscreen is doing
 	function onBackgroundMessage(message: FromOffscreenMessage) {
-		if (message.type === 'webllm:progress') {
+		if (message.type === 'ai:progress') {
 			status.value = 'initializing'
 			initProgress.value = message.progress
 			initStatus.value = message.status
-		} else if (message.type === 'webllm:ready') {
+		} else if (message.type === 'ai:ready') {
 			backend = new TransformersBackend(message.modelId)
 			void getSettings().then((settings) => {
 				activeTools = buildTools(settings.enabledTools)
 			})
 			status.value = 'ready'
-		} else if (message.type === 'webllm:error' && !message.chatId) {
+		} else if (message.type === 'ai:error' && !message.chatId) {
 			status.value = 'error'
 			errorMessage.value = message.message
 		}
@@ -128,7 +128,7 @@ export function useChat() {
 		}
 
 		const state = await browser.runtime
-			.sendMessage({ type: 'webllm:check', target: 'offscreen' })
+			.sendMessage({ type: 'ai:check', target: 'offscreen' })
 			.catch(() => null)
 
 		// Offscreen not ready yet — mark initializing so the bar shows; broadcasts will fill in text
@@ -146,7 +146,6 @@ export function useChat() {
 		} else if (state.state === 'loading') {
 			status.value = 'initializing'
 			initProgress.value = (state.progress as number) ?? 0
-			// show whatever WebLLM has reported so far; broadcasts keep it updated
 			initStatus.value = (state.statusText as string) || ''
 		} else if (state.state === 'error') {
 			status.value = 'error'
@@ -166,7 +165,7 @@ export function useChat() {
 		activeTools = buildTools(settings.enabledTools)
 
 		await browser.runtime
-			.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId: settings.webllmModel })
+			.sendMessage({ type: 'ai:init', target: 'offscreen', modelId: settings.model })
 			.catch(() => {})
 	}
 

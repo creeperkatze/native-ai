@@ -18,13 +18,13 @@ export default defineBackground(() => {
 		await chrome.offscreen.createDocument({
 			url: browser.runtime.getURL('/offscreen.html'),
 			reasons: ['WORKERS'],
-			justification: 'Run WebLLM model inference via WebGPU in a persistent context',
+			justification: 'Run Transformers.js model inference via WebGPU in a persistent context',
 		})
 
 		// Offscreen has no storage access — background reads the setting and triggers the load
 		const settings = await getSettings()
 		browser.runtime
-			.sendMessage({ type: 'webllm:init', target: 'offscreen', modelId: settings.model })
+			.sendMessage({ type: 'ai:init', target: 'offscreen', modelId: settings.model })
 			.catch(() => {})
 	}
 

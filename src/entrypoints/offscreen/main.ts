@@ -22,7 +22,7 @@ function broadcast(message: object) {
 browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 	if (message.target !== 'offscreen') return
 
-	if (message.type === 'webllm:check') {
+	if (message.type === 'ai:check') {
 		sendResponse({
 			state,
 			modelId: loadedModelId,
@@ -33,13 +33,13 @@ browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 		return
 	}
 
-	if (message.type === 'webllm:init') {
+	if (message.type === 'ai:init') {
 		initModel(message.modelId as string)
 		sendResponse({ ok: true })
 		return
 	}
 
-	if (message.type === 'webllm:chat') {
+	if (message.type === 'ai:chat') {
 		runChat(
 			message.chatId as string,
 			message.messages as ChatMessage[],
@@ -49,7 +49,7 @@ browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 		return
 	}
 
-	if (message.type === 'webllm:abort') {
+	if (message.type === 'ai:abort') {
 		abortControllers.get(message.chatId as string)?.abort()
 		abortControllers.delete(message.chatId as string)
 		sendResponse({ ok: true })
@@ -59,7 +59,7 @@ browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function initModel(modelId: string): Promise<void> {
 	if (state === 'ready' && loadedModelId === modelId) {
-		broadcast({ type: 'webllm:ready', modelId })
+		broadcast({ type: 'ai:ready', modelId })
 		return
 	}
 
@@ -82,7 +82,7 @@ async function initModel(modelId: string): Promise<void> {
 					const progress = (info.progress ?? 0) / 100
 					currentProgress = progress
 					currentStatusText = info.file ?? ''
-					broadcast({ type: 'webllm:progress', progress, status: currentStatusText, modelId })
+					broadcast({ type: 'ai:progress', progress, status: currentStatusText, modelId })
 				}
 			},
 		})
@@ -90,11 +90,11 @@ async function initModel(modelId: string): Promise<void> {
 		loadedModelId = modelId
 		state = 'ready'
 		currentProgress = 1
-		broadcast({ type: 'webllm:ready', modelId })
+		broadcast({ type: 'ai:ready', modelId })
 	} catch (e) {
 		state = 'error'
 		currentError = e instanceof Error ? e.message : 'Failed to load model'
-		broadcast({ type: 'webllm:error', message: currentError })
+		broadcast({ type: 'ai:error', message: currentError })
 	}
 }
 
@@ -104,7 +104,7 @@ async function runChat(
 	tools?: ToolDefinition[],
 ): Promise<void> {
 	if (!pipe) {
-		broadcast({ type: 'webllm:error', chatId, message: 'Engine not initialized' })
+		broadcast({ type: 'ai:error', chatId, message: 'Engine not initialized' })
 		return
 	}
 
@@ -149,7 +149,7 @@ async function runChat(
 					const toolCallId = toolCall.id
 
 					broadcast({
-						type: 'webllm:tool_call',
+						type: 'ai:tool_call',
 						chatId,
 						toolCallId,
 						name: toolCall.function.name,
@@ -164,7 +164,7 @@ async function runChat(
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const listener = (msg: any) => {
 							if (
-								msg.type === 'webllm:tool_result' &&
+								msg.type === 'ai:tool_result' &&
 								msg.chatId === chatId &&
 								msg.toolCallId === toolCallId
 							) {
@@ -188,8 +188,8 @@ async function runChat(
 			} else if (!controller.signal.aborted) {
 				// Model answered directly without calling a tool
 				const content = assistantMsg?.content ?? ''
-				if (content) broadcast({ type: 'webllm:chunk', chatId, content })
-				broadcast({ type: 'webllm:done', chatId })
+				if (content) broadcast({ type: 'ai:chunk', chatId, content })
+				broadcast({ type: 'ai:done', chatId })
 				return
 			}
 		}
@@ -204,7 +204,7 @@ async function runChat(
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			callback_function: (text: any) => {
 				if (!controller.signal.aborted) {
-					broadcast({ type: 'webllm:chunk', chatId, content: String(text) })
+					broadcast({ type: 'ai:chunk', chatId, content: String(text) })
 				}
 			},
 		})
@@ -216,12 +216,12 @@ async function runChat(
 		})
 
 		if (!controller.signal.aborted) {
-			broadcast({ type: 'webllm:done', chatId })
+			broadcast({ type: 'ai:done', chatId })
 		}
 	} catch (e) {
 		if (!controller.signal.aborted) {
 			broadcast({
-				type: 'webllm:error',
+				type: 'ai:error',
 				chatId,
 				message: e instanceof Error ? e.message : 'Chat failed',
 			})
