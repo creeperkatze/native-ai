@@ -1,7 +1,6 @@
 {
 	"name": "native-ai",
 	"version": "1.0.0",
-	"description": "Run AI models locally in your browser using native browser capabilities.",
 	"private": true,
 	"type": "module",
 	"scripts": {

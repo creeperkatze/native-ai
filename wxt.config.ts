@@ -23,7 +23,8 @@ export default defineConfig({
 	modules: ['@wxt-dev/module-vue'],
 	manifest: {
 		name: 'Native AI',
-		description: 'Run AI models locally in your browser using native browser capabilities.',
+		description:
+			'A browser extension to run AI models locally in your browser using native WebGPU capabilities.',
 		icons: {
 			16: 'icon-16.png',
 			32: 'icon-32.png',
