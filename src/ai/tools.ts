@@ -20,7 +20,7 @@ export const TOOLS: ToolMeta[] = [
 			function: {
 				name: 'get_page_content',
 				description:
-					'Get the full text content of the current web page the user is viewing. Call this when the user asks about the page or when page context is needed to answer.',
+					'Get the full text content of the current web page the user is viewing. Call this only when the user explicitly asks about the current page, its content, or something on it.',
 				parameters: { type: 'object', properties: {}, required: [] },
 			},
 		},

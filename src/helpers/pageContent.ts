@@ -1,13 +1,17 @@
+import { Readability } from '@mozilla/readability'
+import TurndownService from 'turndown'
 import { browser } from 'wxt/browser'
 
 type Scripting = typeof browser & {
 	scripting?: {
 		executeScript(opts: {
 			target: { tabId: number }
-			func: () => { title: string; url: string; content: string }
-		}): Promise<Array<{ result: { title: string; url: string; content: string } }>>
+			func: () => { title: string; url: string; html: string }
+		}): Promise<Array<{ result: { title: string; url: string; html: string } }>>
 	}
 }
+
+const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' })
 
 export async function getActiveTabContent(): Promise<string | null> {
 	try {
@@ -22,14 +26,19 @@ export async function getActiveTabContent(): Promise<string | null> {
 			func: () => ({
 				title: document.title,
 				url: location.href,
-				content: (document.body?.innerText ?? '').slice(0, 12_000),
+				html: document.documentElement.outerHTML,
 			}),
 		})
 
 		const data = results[0]?.result
-		if (!data?.content) return null
+		if (!data?.html) return null
 
-		return `[Page Context]\nTitle: ${data.title}\nURL: ${data.url}\n\n${data.content}`
+		const doc = new DOMParser().parseFromString(data.html, 'text/html')
+		const article = new Readability(doc).parse()
+		if (!article?.content) return null
+
+		const markdown = td.turndown(article.content).slice(0, 12_000)
+		return `# ${article.title ?? data.title}\nURL: ${data.url}\n\n${markdown}`
 	} catch {
 		return null
 	}

@@ -42,7 +42,7 @@ export default defineConfig({
 			},
 		},
 		permissions: ['storage', 'activeTab', 'offscreen', 'scripting', 'sidePanel'],
-		host_permissions: ['https://huggingface.co/*', 'https://raw.githubusercontent.com/*'],
+		host_permissions: ['<all_urls>'],
 		options_ui: { open_in_tab: true },
 		content_security_policy: {
 			extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
